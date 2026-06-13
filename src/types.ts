@@ -101,19 +101,58 @@ export interface SetupListItem {
   id: string
   packageName: string
   setupType?: string
+  appUrl?: string
   deviceName?: string
   deviceDescription?: string
   unitNamingMethod?: string
   timeZone?: string
-  inheritNetworkProperties?: boolean
+  // Network configuration breakout (never includes the WiFi passphrase).
+  includeNetworkConfiguration?: boolean
   timeServerUrl?: string
+  specifyHostname?: boolean
+  hostname?: string
+  ethernetEnabled?: boolean
+  ethernetProto?: string
+  ethernetIp?: string
+  ethernetSubnet?: string
+  ethernetGateway?: string
+  ethernetDns?: string
+  wifiEnabled?: boolean
+  wifiSsid?: string
+  wifiProto?: string
+  wifiIp?: string
+  wifiSubnet?: string
+  wifiGateway?: string
+  wifiDns?: string
+  interfacePriority?: string
   bsnCloudEnabled?: boolean
   dwsEnabled?: boolean
+  remoteDwsEnabled?: boolean
   lwsEnabled?: boolean
   lwsUserName?: string
+  lwsConfig?: string
   lwsEnableUpdateNotifications?: boolean
+  enableSerialDebugging?: boolean
+  enableSystemLogDebugging?: boolean
+  firmwareUpdateType?: string
+  enableRemoteSnapshot?: boolean
+  remoteSnapshotInterval?: number
+  remoteSnapshotMaxImages?: number
+  remoteSnapshotJpegQualityLevel?: number
+  remoteSnapshotScreenOrientation?: string
+  firmwareFamilies?: FirmwareFamily[]
   version?: string
   createdAt?: string
+}
+
+/** A row in the per-family OS-update matrix (firmwareUpdatesByFamily). */
+export interface FirmwareFamily {
+  family: string
+  source: string
+  url?: string
+  productionVersion?: string
+  betaVersion?: string
+  compatibleVersion?: string
 }
 
 export interface ListSetupsResponse {
@@ -174,6 +213,27 @@ export interface UpdateProvisionResponse {
 export interface DeleteProvisionResponse {
   deleted: boolean
   id: string
+  trace: TraceEntry[]
+}
+
+// Compact per-device summary for the "List devices" tab. A union by serial of
+// registered device records and B-Deploy provision records in one network, so
+// each row shows both Registered and Provisioned status (like Find device).
+export interface DeviceSummaryItem {
+  serial: string
+  registered: boolean
+  provisioned: boolean
+  name?: string
+  model?: string
+  setupType?: string
+  health?: string
+  uptime?: string
+  setupPackageName?: string
+}
+
+export interface ListDevicesResponse {
+  network: string
+  devices: DeviceSummaryItem[]
   trace: TraceEntry[]
 }
 

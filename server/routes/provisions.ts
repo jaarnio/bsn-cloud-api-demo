@@ -1,8 +1,9 @@
 import { Router } from 'express'
 import { bsnFetch } from '../bsnClient.ts'
 import { AuthError, selectNetwork } from '../auth.ts'
-import { API_BASE, PROVISION_BASE } from '../config.ts'
+import { PROVISION_BASE } from '../config.ts'
 import { withTrace } from '../trace.ts'
+import { getUsername } from '../account.ts'
 
 export const provisionsRouter = Router()
 
@@ -13,25 +14,6 @@ interface ProvisionBody {
   desc?: string
   setupId?: string
   setupName?: string
-}
-
-let usernameCache: string | null = null
-
-/** The account login (GET /self), used as the provision record's `username`. */
-async function getUsername(): Promise<string> {
-  if (usernameCache) return usernameCache
-  const { ok, status, body } = await bsnFetch(`${API_BASE}/self`, {
-    trace: {
-      step: 'Get account user',
-      note: 'The provision record is owned by this account login (GET /self).',
-      summarize: (b) => ({ login: (b as { login?: string })?.login }),
-    },
-  })
-  if (!ok) throw new AuthError(status, `Failed to read account user (${status}).`)
-  const login = (body as { login?: string })?.login
-  if (!login) throw new AuthError(502, 'Account user has no login.')
-  usernameCache = login
-  return login
 }
 
 /**

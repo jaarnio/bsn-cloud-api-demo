@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { createSetup, getNetworks } from '../api/client'
+import { createSetup, getFirmwareDefaults, getNetworks } from '../api/client'
 import { SetupForm, defaultSetupName, type SetupFormValues } from './SetupForm'
-import type { CreateSetupResponse, TraceEntry } from '../types'
+import type { CreateSetupResponse, FirmwareFamily, TraceEntry } from '../types'
 
 export function CreateSetupPanel({ onTrace }: { onTrace: (trace: TraceEntry[]) => void }) {
   const [networks, setNetworks] = useState<string[]>([])
+  const [firmwareFamilies, setFirmwareFamilies] = useState<FirmwareFamily[]>([])
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState<CreateSetupResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -13,6 +14,10 @@ export function CreateSetupPanel({ onTrace }: { onTrace: (trace: TraceEntry[]) =
     getNetworks()
       .then((r) => setNetworks(r.networks.map((n) => n.name)))
       .catch((err) => setError((err as Error).message))
+    // Per-family OS-update versions for the matrix (create has no existing setup).
+    getFirmwareDefaults()
+      .then((r) => setFirmwareFamilies(r.firmwareFamilies))
+      .catch(() => setFirmwareFamilies([]))
   }, [])
 
   async function onSubmit(values: SetupFormValues) {
@@ -28,15 +33,48 @@ export function CreateSetupPanel({ onTrace }: { onTrace: (trace: TraceEntry[]) =
         unitNamingMethod: values.unitNamingMethod,
         timeZone: values.timeZone,
         setupType: values.setupType,
-        inheritNetworkProperties: values.inheritNetworkProperties,
+        appUrl: values.appUrl || undefined,
+        includeNetworkConfiguration: values.includeNetworkConfiguration,
+        ethernetEnabled: values.ethernetEnabled,
+        ethernetProto: values.ethernetProto,
+        ethernetIp: values.ethernetIp,
+        ethernetSubnet: values.ethernetSubnet,
+        ethernetGateway: values.ethernetGateway,
+        ethernetDns: values.ethernetDns,
+        wifiEnabled: values.wifiEnabled,
+        wifiSsid: values.wifiSsid,
+        wifiPassphrase: values.wifiPassphrase || undefined,
+        wifiProto: values.wifiProto,
+        wifiIp: values.wifiIp,
+        wifiSubnet: values.wifiSubnet,
+        wifiGateway: values.wifiGateway,
+        wifiDns: values.wifiDns,
+        interfacePriority: values.interfacePriority,
+        specifyHostname: values.specifyHostname,
+        hostname: values.hostname,
         timeServerUrl: values.timeServerUrl || undefined,
         bsnCloudEnabled: values.bsnCloudEnabled,
         dwsEnabled: values.dwsEnabled,
         dwsPassword: values.dwsPassword || undefined,
+        remoteDwsEnabled: values.remoteDwsEnabled,
         lwsEnabled: values.lwsEnabled,
         lwsUserName: values.lwsUserName,
         lwsPassword: values.lwsPassword || undefined,
+        lwsConfig: values.lwsConfig,
         lwsEnableUpdateNotifications: values.lwsEnableUpdateNotifications,
+        enableSerialDebugging: values.enableSerialDebugging,
+        enableSystemLogDebugging: values.enableSystemLogDebugging,
+        firmwareUpdateType: values.firmwareUpdateType,
+        enableRemoteSnapshot: values.enableRemoteSnapshot,
+        remoteSnapshotInterval: values.remoteSnapshotInterval,
+        remoteSnapshotMaxImages: values.remoteSnapshotMaxImages,
+        remoteSnapshotJpegQualityLevel: values.remoteSnapshotJpegQualityLevel,
+        remoteSnapshotScreenOrientation: values.remoteSnapshotScreenOrientation,
+        firmwareFamilies: values.firmwareFamilies.map((f) => ({
+          family: f.family,
+          source: f.source,
+          url: f.url,
+        })),
       })
       setResult(res)
       onTrace(res.trace)
@@ -51,13 +89,13 @@ export function CreateSetupPanel({ onTrace }: { onTrace: (trace: TraceEntry[]) =
     <div className="fn-pane">
       <h2>Create a setup</h2>
       <p className="muted small">
-        Mirrors the BrightSign "Edit a Setup File" form. Starts from a known-good template,
-        applies your changes, embeds a fresh registration token, and stores it in B-Deploy.
+        Mirrors the BrightSign "Edit a Setup File" form. Builds the v3 setup from B-Deploy
+        defaults, applies your changes, embeds a fresh registration token, and stores it in B-Deploy.
       </p>
 
       <SetupForm
         networks={networks}
-        initial={{ network: networks[0] ?? '', packageName: defaultSetupName() }}
+        initial={{ network: networks[0] ?? '', packageName: defaultSetupName(), firmwareFamilies }}
         submitLabel="Create setup"
         busy={busy}
         onSubmit={onSubmit}

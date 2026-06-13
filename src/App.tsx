@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
+import type { ComponentType } from 'react'
 import { getHealth } from './api/client'
 import { DeviceLookup } from './components/DeviceLookup'
+import { DeviceListPanel } from './components/DeviceListPanel'
 import { AuthPanel } from './components/AuthPanel'
 import { CreateSetupPanel } from './components/CreateSetupPanel'
 import { SetupPackagesPanel } from './components/SetupPackagesPanel'
@@ -10,30 +12,58 @@ import { ReprovisionPanel } from './components/ReprovisionPanel'
 import { FlowPanel } from './components/FlowPanel'
 import type { HealthStatus, TraceEntry } from './types'
 
-type TabId = 'auth' | 'device' | 'setup' | 'packages' | 'provision' | 'provisions' | 'reprovision'
+type TabId =
+  | 'auth'
+  | 'deviceList'
+  | 'device'
+  | 'setup'
+  | 'packages'
+  | 'provision'
+  | 'provisions'
+  | 'reprovision'
 
-const TABS: Array<{ id: TabId; label: string }> = [
-  { id: 'auth', label: 'Authentication' },
-  { id: 'device', label: 'Find device' },
-  { id: 'setup', label: 'Create setup' },
-  { id: 'packages', label: 'Setup packages' },
-  { id: 'provision', label: 'Create provision' },
-  { id: 'provisions', label: 'Provision records' },
-  { id: 'reprovision', label: 'Reprovision' },
+type PanelProps = { onTrace: (trace: TraceEntry[]) => void }
+type TabDef = { id: TabId; label: string; Component: ComponentType<PanelProps> }
+type NavGroup = { title: string; tabs: TabDef[] }
+
+// Grouped navigation registry: nav and content both derive from this. Add a feature by
+// dropping an entry into the appropriate group.
+const NAV: NavGroup[] = [
+  { title: 'Account', tabs: [{ id: 'auth', label: 'Authentication', Component: AuthPanel }] },
+  {
+    title: 'Devices',
+    tabs: [
+      { id: 'deviceList', label: 'List devices', Component: DeviceListPanel },
+      { id: 'device', label: 'Find device', Component: DeviceLookup },
+      { id: 'reprovision', label: 'Reprovision', Component: ReprovisionPanel },
+    ],
+  },
+  {
+    title: 'Setup',
+    tabs: [
+      { id: 'setup', label: 'Create setup', Component: CreateSetupPanel },
+      { id: 'packages', label: 'Setup packages', Component: SetupPackagesPanel },
+    ],
+  },
+  {
+    title: 'Provisioning',
+    tabs: [
+      { id: 'provision', label: 'Create provision', Component: CreateProvisionPanel },
+      { id: 'provisions', label: 'Provision records', Component: ProvisionRecordsPanel },
+    ],
+  },
 ]
+
+const ALL_TABS: TabDef[] = NAV.flatMap((g) => g.tabs)
 
 export default function App() {
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [tab, setTab] = useState<TabId>('auth')
 
   // Each tab keeps its own latest trace so switching tabs preserves context.
-  const [authTrace, setAuthTrace] = useState<TraceEntry[] | null>(null)
-  const [deviceTrace, setDeviceTrace] = useState<TraceEntry[] | null>(null)
-  const [setupTrace, setSetupTrace] = useState<TraceEntry[] | null>(null)
-  const [packagesTrace, setPackagesTrace] = useState<TraceEntry[] | null>(null)
-  const [provisionTrace, setProvisionTrace] = useState<TraceEntry[] | null>(null)
-  const [provisionsTrace, setProvisionsTrace] = useState<TraceEntry[] | null>(null)
-  const [reprovisionTrace, setReprovisionTrace] = useState<TraceEntry[] | null>(null)
+  const [traces, setTraces] = useState<Partial<Record<TabId, TraceEntry[]>>>({})
+  const setTrace = (id: TabId) => (trace: TraceEntry[]) =>
+    setTraces((prev) => ({ ...prev, [id]: trace }))
 
   useEffect(() => {
     getHealth()
@@ -43,6 +73,8 @@ export default function App() {
       )
   }, [])
 
+  const active = ALL_TABS.find((t) => t.id === tab) ?? ALL_TABS[0]
+
   return (
     <main className="app">
       <header>
@@ -50,61 +82,32 @@ export default function App() {
         <HealthBadge health={health} />
       </header>
 
-      <nav className="tabs">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            className={`tab ${tab === t.id ? 'tab-active' : ''}`}
-            onClick={() => setTab(t.id)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
+      <div className="shell">
+        <nav className="sidebar">
+          {NAV.map((group) => (
+            <div className="nav-group" key={group.title}>
+              <div className="nav-group-title">{group.title}</div>
+              {group.tabs.map((t) => (
+                <button
+                  key={t.id}
+                  className={`nav-item ${tab === t.id ? 'nav-item-active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          ))}
+        </nav>
 
-      <div className="card">
-        {tab === 'auth' && (
-          <div className="split">
-            <AuthPanel onTrace={setAuthTrace} />
-            <FlowPanel trace={authTrace} />
+        <div className="content">
+          <div className="card">
+            <div className="split">
+              <active.Component onTrace={setTrace(active.id)} />
+              <FlowPanel trace={traces[active.id] ?? null} />
+            </div>
           </div>
-        )}
-        {tab === 'device' && (
-          <div className="split">
-            <DeviceLookup onTrace={setDeviceTrace} />
-            <FlowPanel trace={deviceTrace} />
-          </div>
-        )}
-        {tab === 'setup' && (
-          <div className="split">
-            <CreateSetupPanel onTrace={setSetupTrace} />
-            <FlowPanel trace={setupTrace} />
-          </div>
-        )}
-        {tab === 'packages' && (
-          <div className="split">
-            <SetupPackagesPanel onTrace={setPackagesTrace} />
-            <FlowPanel trace={packagesTrace} />
-          </div>
-        )}
-        {tab === 'provision' && (
-          <div className="split">
-            <CreateProvisionPanel onTrace={setProvisionTrace} />
-            <FlowPanel trace={provisionTrace} />
-          </div>
-        )}
-        {tab === 'provisions' && (
-          <div className="split">
-            <ProvisionRecordsPanel onTrace={setProvisionsTrace} />
-            <FlowPanel trace={provisionsTrace} />
-          </div>
-        )}
-        {tab === 'reprovision' && (
-          <div className="split">
-            <ReprovisionPanel onTrace={setReprovisionTrace} />
-            <FlowPanel trace={reprovisionTrace} />
-          </div>
-        )}
+        </div>
       </div>
     </main>
   )

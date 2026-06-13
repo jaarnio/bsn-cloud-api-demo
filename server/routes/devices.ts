@@ -51,6 +51,130 @@ devicesRouter.get('/', async (req, res) => {
 })
 
 /**
+ * GET /api/devices/list?network=NAME
+ *
+ * Compact device inventory for ONE network: the union by serial of registered
+ * device records (native /Devices) and B-Deploy provision records. Each row
+ * carries both Registered and Provisioned status (like the per-serial Find
+ * device view, summarized). Device-record fields (name, model, setupType,
+ * health, uptime) come from /Devices; the setup package name comes from the
+ * provision record. Two reads, run in parallel, both surfaced in the trace.
+ */
+devicesRouter.get('/list', async (req, res) => {
+  const network = String(req.query.network ?? '').trim()
+  if (!network) {
+    return res.status(400).json({ error: 'A "network" query parameter is required.' })
+  }
+  try {
+    const { result, trace } = await withTrace(async () => {
+      await selectNetwork(network)
+      const [devices, provisions] = await Promise.all([
+        listRegisteredDevices(network),
+        listProvisionRecords(network),
+      ])
+      return mergeBySerial(devices, provisions)
+    })
+    return res.json({ network, devices: result, trace })
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return res
+        .status(err.status === 401 ? 502 : err.status)
+        .json({ error: friendlyMessage(err.status, err.message), status: err.status })
+    }
+    return res.status(500).json({ error: (err as Error).message || 'Unexpected server error.' })
+  }
+})
+
+interface RawListDevice {
+  serial?: string
+  model?: string
+  settings?: { name?: string; setupType?: string }
+  status?: { health?: string; uptime?: string }
+}
+
+/** Registered players in the network — curated summary, credentials stripped. */
+async function listRegisteredDevices(network: string) {
+  const { ok, status, body } = await bsnFetch(`${API_BASE}/Devices/?pageSize=100`, {
+    network,
+    trace: {
+      step: 'List device records',
+      note: 'Native Devices resource — registered players in this network (name, model, health, uptime).',
+      summarize: (b) => ({ devices: ((b as { items?: unknown[] })?.items ?? []).length }),
+    },
+  })
+  if (!ok) throw new AuthError(status, `Failed to list device records (${status}).`)
+  const items = (body as { items?: RawListDevice[] })?.items ?? []
+  return items.map((d) => ({
+    serial: String(d.serial ?? ''),
+    model: d.model,
+    name: d.settings?.name,
+    setupType: d.settings?.setupType,
+    health: d.status?.health,
+    uptime: d.status?.uptime,
+  }))
+}
+
+interface RawProvision {
+  serial?: string
+  setupName?: string
+  setupname?: string
+}
+
+/** B-Deploy provision records in the network — serial -> setup package binding. */
+async function listProvisionRecords(network: string) {
+  const url =
+    `${PROVISION_BASE}/rest-device/v2/device/?query[networkname]=${encodeURIComponent(network)}` +
+    `&sort[serial]=1&page[pagenum]=1&page[pagesize]=100`
+  const { ok, status, body } = await bsnFetch(url, {
+    network,
+    trace: {
+      step: 'List provision records',
+      note: 'B-Deploy provision records in this network — used to mark each serial Provisioned and show its setup.',
+      summarize: (b) => ({ total: (b as { result?: { total?: number } })?.result?.total }),
+    },
+  })
+  if (!ok) throw new AuthError(status, `Failed to list provision records (${status}).`)
+  const players = (body as { result?: { players?: RawProvision[] } })?.result?.players
+  return Array.isArray(players) ? players : []
+}
+
+/**
+ * Build the union by serial: a row exists if the serial is registered, has a
+ * provision record, or both. Registered/Provisioned booleans reflect which
+ * entity supplied it; setup package name comes from the provision record.
+ */
+function mergeBySerial(
+  devices: Awaited<ReturnType<typeof listRegisteredDevices>>,
+  provisions: RawProvision[],
+) {
+  const bySerial = new Map<string, Record<string, unknown>>()
+  for (const d of devices) {
+    if (!d.serial) continue
+    bySerial.set(d.serial, {
+      serial: d.serial,
+      registered: true,
+      provisioned: false,
+      name: d.name,
+      model: d.model,
+      setupType: d.setupType,
+      health: d.health,
+      uptime: d.uptime,
+    })
+  }
+  for (const p of provisions) {
+    const serial = String(p.serial ?? '')
+    if (!serial) continue
+    const existing = bySerial.get(serial) ?? { serial, registered: false }
+    existing.provisioned = true
+    existing.setupPackageName = p.setupName ?? p.setupname
+    bySerial.set(serial, existing)
+  }
+  return [...bySerial.values()].sort((a, b) =>
+    String(a.serial).localeCompare(String(b.serial)),
+  )
+}
+
+/**
  * Sweep every account network for the serial, returning the combined picture
  * for the first network with a device OR provision record. Each call is
  * annotated so the API-flow trace tells the story; the per-network repeats are

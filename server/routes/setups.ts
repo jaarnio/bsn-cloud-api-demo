@@ -1,12 +1,22 @@
 import { Router } from 'express'
 import { bsnFetch } from '../bsnClient.ts'
-import { AuthError, getNetworks, selectNetwork } from '../auth.ts'
+import { AuthError, selectNetwork } from '../auth.ts'
 import { API_BASE, PROVISION_BASE } from '../config.ts'
 import { withTrace } from '../trace.ts'
+import { getUsername } from '../account.ts'
+import {
+  buildSetupEntity,
+  applyNetworkConfig,
+  summarizeNetwork,
+  applyFirmwareFamilies,
+  summarizeFirmwareFamilies,
+  canonicalFirmwareFamilies,
+  type NetworkOpts,
+} from '../setupTemplate.ts'
 
 export const setupsRouter = Router()
 
-interface CreateSetupBody {
+interface CreateSetupBody extends NetworkOpts {
   network?: string
   // Setup File Basics
   packageName?: string
@@ -16,29 +26,63 @@ interface CreateSetupBody {
   timeZone?: string
   // Publishing Mode
   setupType?: string
-  // Network
-  inheritNetworkProperties?: boolean
-  timeServerUrl?: string
+  // Partner Application bundle URL (stored as bDeploy.url)
+  appUrl?: string
+  // Network: the full breakout (includeNetworkConfiguration, ethernet*, wifi*,
+  // interfacePriority, specifyHostname, hostname, timeServerUrl) comes via NetworkOpts.
   bsnCloudEnabled?: boolean
   // Services & Monitoring
   dwsEnabled?: boolean
   dwsPassword?: string
+  remoteDwsEnabled?: boolean
   lwsEnabled?: boolean
   lwsUserName?: string
   lwsPassword?: string
+  lwsConfig?: string
   lwsEnableUpdateNotifications?: boolean
+  // Diagnostics & Updates
+  enableSerialDebugging?: boolean
+  enableSystemLogDebugging?: boolean
+  firmwareUpdateType?: string
+  // Per-family OS update choices (firmwareUpdatesByFamily)
+  firmwareFamilies?: Array<{ family: string; source?: string; url?: string }>
+  // Remote Screenshots
+  enableRemoteSnapshot?: boolean
+  remoteSnapshotInterval?: number
+  remoteSnapshotMaxImages?: number
+  remoteSnapshotJpegQualityLevel?: number
+  remoteSnapshotScreenOrientation?: string
+}
+
+/**
+ * App-layer validations the BSN/B-Deploy APIs don't enforce themselves but a
+ * real application would (mirrored client-side in src/components/SetupForm.tsx).
+ * Returns the first failing rule's message, or null if the body is valid.
+ */
+function validateSetupBody(body: CreateSetupBody): string | null {
+  if (body.setupType === 'partnerApplication' && !String(body.appUrl ?? '').trim())
+    return 'A Partner App URL is required for Partner Application setups.'
+  if (body.setupType === 'lfn' && !body.lwsEnabled)
+    return 'Local Network publishing requires the Local Web Server (LWS) to be enabled.'
+  if (body.dwsEnabled && !String(body.dwsPassword ?? '').trim())
+    return 'A DWS password is required when the Diagnostic Web Server is enabled.'
+  if (body.lwsEnabled && !String(body.lwsUserName ?? '').trim())
+    return 'An LWS username is required when the Local Web Server is enabled.'
+  if (body.lwsEnabled && !String(body.lwsPassword ?? '').trim())
+    return 'An LWS password is required when the Local Web Server is enabled.'
+  return null
 }
 
 /**
  * POST /api/setups
  *
  * Creates a B-Deploy setup definition (PRD feature 4). The v3 Device Setup
- * Entity has dozens of fields and is under-specified, so we start from a
- * known-good template — an existing setup in the target network (account-level
- * fields like bDeploy.client/username are constant) — override a few fields,
- * embed a fresh device registration token, and POST it.
+ * Entity is built from a schema we own (server/setupTemplate.ts) — a canonical
+ * default seeded from a known-good setup — onto which we layer the user's choices
+ * and a freshly minted registration token. This is deterministic: no inheritance
+ * from "whichever setup happened to be first" (see setup-builder-rebuild-plan.md).
  *
- * Flow: select network -> mint registration token -> clone template -> create.
+ * Flow: select network -> mint registration token -> build entity -> create.
  * Returns { created, setupId, packageName, network, basedOn, tokenValidTo }.
  */
 setupsRouter.post('/', async (req, res) => {
@@ -47,6 +91,8 @@ setupsRouter.post('/', async (req, res) => {
   const packageName = String(body.packageName ?? '').trim()
   if (!network) return res.status(400).json({ error: 'A target "network" is required.' })
   if (!packageName) return res.status(400).json({ error: 'A "packageName" is required.' })
+  const invalid = validateSetupBody(body)
+  if (invalid) return res.status(400).json({ error: invalid })
 
   try {
     const { result, trace } = await withTrace(() => createSetup(network, packageName, body))
@@ -74,6 +120,15 @@ setupsRouter.get('/', async (req, res) => {
   } catch (err) {
     return handleError(res, err)
   }
+})
+
+/**
+ * GET /api/setups/firmware-defaults
+ * The canonical default's per-family firmware versions + sources, so the create
+ * form can render the OS-update matrix (create has no existing setup to read).
+ */
+setupsRouter.get('/firmware-defaults', (_req, res) => {
+  res.json({ firmwareFamilies: canonicalFirmwareFamilies() })
 })
 
 /**
@@ -118,6 +173,8 @@ setupsRouter.put('/:id', async (req, res) => {
   const body = (req.body ?? {}) as CreateSetupBody
   const network = String(body.network ?? '').trim()
   if (!network) return res.status(400).json({ error: 'A target "network" is required.' })
+  const invalid = validateSetupBody(body)
+  if (invalid) return res.status(400).json({ error: invalid })
   try {
     const { result, trace } = await withTrace(() => updateSetup(network, id, body))
     return res.json({ ...result, trace })
@@ -151,23 +208,17 @@ async function createSetup(network: string, packageName: string, opts: CreateSet
   }
   const token = tokenRes.body as RegistrationToken
 
-  // 2. Clone a known-good setup as the base entity.
-  const template = await loadTemplate(network)
-  if (!template) {
-    throw new AuthError(
-      422,
-      'No existing setup is available to use as a template. Choose a network that already has at least one setup.',
-    )
-  }
-  const inner = JSON.parse(String(template.setupJson)) as Record<string, unknown>
-  delete inner._id
+  // 2. Build the base entity from the schema we own (deterministic — no clone).
+  const username = await getUsername()
+  const inner = buildSetupEntity({
+    network,
+    packageName,
+    username,
+    setupType: opts.setupType,
+    appUrl: opts.appUrl,
+  })
 
-  // 3. Override the editable fields on the cloned entity + bind to the
-  //    target network/token. Blank password fields are intentionally NOT
-  //    applied, so the template's existing credentials are preserved and never
-  //    round-tripped through the browser.
-  inner.packageName = packageName
-  inner.bDeploy = { ...(inner.bDeploy as object), networkName: network, packageName }
+  // 3. Layer the user's editable-field choices onto the owned base.
   applyEditableFields(inner, opts)
 
   inner.bsnDeviceRegistrationTokenEntity = {
@@ -207,41 +258,9 @@ async function createSetup(network: string, packageName: string, opts: CreateSet
     setupId: (createRes.body as { result?: string })?.result ?? null,
     packageName,
     network,
-    basedOn: template.packageName,
+    basedOn: 'schema-default',
     tokenValidTo: token.validTo,
   }
-}
-
-/** First setup in the target network, else any network (account fields are constant). */
-async function loadTemplate(network: string): Promise<Record<string, unknown> | null> {
-  const direct = await fetchFirstSetup(network)
-  if (direct) return direct
-  for (const n of await getNetworks()) {
-    if (n.name === network) continue
-    const t = await fetchFirstSetup(n.name)
-    if (t) return t
-  }
-  return null
-}
-
-async function fetchFirstSetup(network: string): Promise<Record<string, unknown> | null> {
-  const { ok, body } = await bsnFetch(
-    `${PROVISION_BASE}/rest-setup/v3/setup/?networkname=${encodeURIComponent(network)}`,
-    {
-      network,
-      trace: {
-        step: 'Load template setup',
-        note: 'Clones a known-good setup as the base for the new v3 entity.',
-        summarize: (b) => {
-          const list = Array.isArray(b) ? b : ((b as { result?: unknown[] })?.result ?? [])
-          return { setups: Array.isArray(list) ? list.length : 0 }
-        },
-      },
-    },
-  )
-  if (!ok) return null
-  const list = Array.isArray(body) ? body : ((body as { result?: unknown[] })?.result ?? [])
-  return Array.isArray(list) && list.length > 0 ? (list[0] as Record<string, unknown>) : null
 }
 
 /** Apply the editable section fields onto a setup entity (shared by create + edit). */
@@ -251,19 +270,39 @@ function applyEditableFields(inner: Record<string, unknown>, opts: CreateSetupBo
   if (opts.unitNamingMethod) inner.unitNamingMethod = String(opts.unitNamingMethod)
   if (opts.timeZone) inner.timeZone = String(opts.timeZone)
   if (opts.setupType) inner.setupType = String(opts.setupType)
-  if (opts.inheritNetworkProperties != null)
-    inner.inheritNetworkProperties = Boolean(opts.inheritNetworkProperties)
-  if (opts.bsnCloudEnabled != null) inner.bsnCloudEnabled = Boolean(opts.bsnCloudEnabled)
-  if (opts.timeServerUrl && inner.network && typeof inner.network === 'object') {
-    ;(inner.network as { timeServers?: string[] }).timeServers = [String(opts.timeServerUrl)]
+  // Partner Application bundle URL lives at bDeploy.url (autorun.zip the player
+  // downloads). Only set when provided so non-partner setups keep their value.
+  if (opts.appUrl != null) {
+    inner.bDeploy = { ...(inner.bDeploy as object), url: String(opts.appUrl) }
   }
+  if (opts.bsnCloudEnabled != null) inner.bsnCloudEnabled = Boolean(opts.bsnCloudEnabled)
+  // Network configuration (interfaces, hostname, time server, inherit flag).
+  applyNetworkConfig(inner, opts)
   if (opts.dwsEnabled != null) inner.dwsEnabled = Boolean(opts.dwsEnabled)
   if (opts.dwsPassword) inner.dwsPassword = String(opts.dwsPassword)
+  if (opts.remoteDwsEnabled != null) inner.remoteDwsEnabled = Boolean(opts.remoteDwsEnabled)
   if (opts.lwsEnabled != null) inner.lwsEnabled = Boolean(opts.lwsEnabled)
   if (opts.lwsUserName != null) inner.lwsUserName = String(opts.lwsUserName)
   if (opts.lwsPassword) inner.lwsPassword = String(opts.lwsPassword)
+  if (opts.lwsConfig) inner.lwsConfig = String(opts.lwsConfig)
   if (opts.lwsEnableUpdateNotifications != null)
     inner.lwsEnableUpdateNotifications = Boolean(opts.lwsEnableUpdateNotifications)
+  // Diagnostics & Updates
+  if (opts.enableSerialDebugging != null) inner.enableSerialDebugging = Boolean(opts.enableSerialDebugging)
+  if (opts.enableSystemLogDebugging != null)
+    inner.enableSystemLogDebugging = Boolean(opts.enableSystemLogDebugging)
+  if (opts.firmwareUpdateType) inner.firmwareUpdateType = String(opts.firmwareUpdateType)
+  applyFirmwareFamilies(inner, opts.firmwareFamilies)
+  // Remote Screenshots
+  if (opts.enableRemoteSnapshot != null) inner.enableRemoteSnapshot = Boolean(opts.enableRemoteSnapshot)
+  if (opts.remoteSnapshotInterval != null)
+    inner.remoteSnapshotInterval = Number(opts.remoteSnapshotInterval)
+  if (opts.remoteSnapshotMaxImages != null)
+    inner.remoteSnapshotMaxImages = Number(opts.remoteSnapshotMaxImages)
+  if (opts.remoteSnapshotJpegQualityLevel != null)
+    inner.remoteSnapshotJpegQualityLevel = Number(opts.remoteSnapshotJpegQualityLevel)
+  if (opts.remoteSnapshotScreenOrientation)
+    inner.remoteSnapshotScreenOrientation = String(opts.remoteSnapshotScreenOrientation)
 }
 
 /** A sanitized request-body summary for the flow trace (passwords/token redacted). */
@@ -272,10 +311,12 @@ function redactedBody(inner: Record<string, unknown>, network: string): Record<s
     packageName: inner.packageName,
     networkName: network,
     setupType: inner.setupType,
+    appUrl: (inner.bDeploy as { url?: string })?.url,
     deviceName: inner.deviceName,
     unitNamingMethod: inner.unitNamingMethod,
     timeZone: inner.timeZone,
     inheritNetworkProperties: inner.inheritNetworkProperties,
+    network: summarizeNetwork(inner),
     bsnCloudEnabled: inner.bsnCloudEnabled,
     dwsEnabled: inner.dwsEnabled,
     dwsPassword: '••••••••',
@@ -318,22 +359,33 @@ async function listSetups(network: string) {
     } catch {
       // ignore
     }
-    const net = cfg.network as { timeServers?: string[] } | undefined
+    const bDeploy = cfg.bDeploy as { url?: string } | undefined
     return {
       id: item._id,
       packageName: item.packageName,
       setupType: cfg.setupType ?? item.setupType,
+      appUrl: bDeploy?.url,
       deviceName: cfg.deviceName,
       deviceDescription: cfg.deviceDescription,
       unitNamingMethod: cfg.unitNamingMethod,
       timeZone: cfg.timeZone,
-      inheritNetworkProperties: cfg.inheritNetworkProperties,
-      timeServerUrl: net?.timeServers?.[0],
+      ...summarizeNetwork(cfg),
       bsnCloudEnabled: cfg.bsnCloudEnabled,
       dwsEnabled: cfg.dwsEnabled,
+      remoteDwsEnabled: cfg.remoteDwsEnabled,
       lwsEnabled: cfg.lwsEnabled,
       lwsUserName: cfg.lwsUserName,
+      lwsConfig: cfg.lwsConfig,
       lwsEnableUpdateNotifications: cfg.lwsEnableUpdateNotifications,
+      enableSerialDebugging: cfg.enableSerialDebugging,
+      enableSystemLogDebugging: cfg.enableSystemLogDebugging,
+      firmwareUpdateType: cfg.firmwareUpdateType,
+      enableRemoteSnapshot: cfg.enableRemoteSnapshot,
+      remoteSnapshotInterval: cfg.remoteSnapshotInterval,
+      remoteSnapshotMaxImages: cfg.remoteSnapshotMaxImages,
+      remoteSnapshotJpegQualityLevel: cfg.remoteSnapshotJpegQualityLevel,
+      remoteSnapshotScreenOrientation: cfg.remoteSnapshotScreenOrientation,
+      firmwareFamilies: summarizeFirmwareFamilies(cfg),
       version: item.version,
       createdAt: item.createdAt,
     }
