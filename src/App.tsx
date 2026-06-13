@@ -78,7 +78,7 @@ export default function App() {
   return (
     <main className="app">
       <header>
-        <h1>BSN.cloud Provisioning Demo</h1>
+        <h1>BSN.cloud API Demo</h1>
         <HealthBadge health={health} />
       </header>
 

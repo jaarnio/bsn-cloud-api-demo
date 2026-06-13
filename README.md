@@ -1,4 +1,4 @@
-# BSN.cloud Provisioning Demo
+# BSN.cloud API Demo
 
 A sandbox web app that demonstrates BrightSign's **BSN.cloud** and **B-Deploy** provisioning
 APIs end-to-end. Every feature is a tab with a split screen: the function on the left and a
