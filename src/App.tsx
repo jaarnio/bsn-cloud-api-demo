@@ -9,6 +9,15 @@ import { SetupPackagesPanel } from './components/SetupPackagesPanel'
 import { CreateProvisionPanel } from './components/CreateProvisionPanel'
 import { ProvisionRecordsPanel } from './components/ProvisionRecordsPanel'
 import { ReprovisionPanel } from './components/ReprovisionPanel'
+import { InformationPanel } from './components/rdws/InformationPanel'
+import { ControlPanel } from './components/rdws/ControlPanel'
+import { LogsPanel } from './components/rdws/LogsPanel'
+import { StoragePanel } from './components/rdws/StoragePanel'
+import { CustomPanel } from './components/rdws/CustomPanel'
+import { SnapshotPanel } from './components/rdws/SnapshotPanel'
+import { OsUpdatePanel } from './components/rdws/OsUpdatePanel'
+import { VideoPanel } from './components/rdws/VideoPanel'
+import { RegistryPanel } from './components/rdws/RegistryPanel'
 import { FlowPanel } from './components/FlowPanel'
 import type { HealthStatus, TraceEntry } from './types'
 
@@ -21,6 +30,15 @@ type TabId =
   | 'provision'
   | 'provisions'
   | 'reprovision'
+  | 'rdwsInformation'
+  | 'rdwsControl'
+  | 'rdwsLogs'
+  | 'rdwsStorage'
+  | 'rdwsCustom'
+  | 'rdwsSnapshot'
+  | 'rdwsOsUpdate'
+  | 'rdwsVideo'
+  | 'rdwsRegistry'
 
 type PanelProps = { onTrace: (trace: TraceEntry[]) => void }
 type TabDef = { id: TabId; label: string; Component: ComponentType<PanelProps> }
@@ -36,6 +54,20 @@ const NAV: NavGroup[] = [
       { id: 'deviceList', label: 'List devices', Component: DeviceListPanel },
       { id: 'device', label: 'Find device', Component: DeviceLookup },
       { id: 'reprovision', label: 'Reprovision', Component: ReprovisionPanel },
+    ],
+  },
+  {
+    title: 'RDWS',
+    tabs: [
+      { id: 'rdwsInformation', label: 'Information', Component: InformationPanel },
+      { id: 'rdwsControl', label: 'Control', Component: ControlPanel },
+      { id: 'rdwsLogs', label: 'Logs', Component: LogsPanel },
+      { id: 'rdwsStorage', label: 'Storage', Component: StoragePanel },
+      { id: 'rdwsCustom', label: 'Custom', Component: CustomPanel },
+      { id: 'rdwsSnapshot', label: 'Snapshot', Component: SnapshotPanel },
+      { id: 'rdwsOsUpdate', label: 'OS Update', Component: OsUpdatePanel },
+      { id: 'rdwsVideo', label: 'Video', Component: VideoPanel },
+      { id: 'rdwsRegistry', label: 'Registry', Component: RegistryPanel },
     ],
   },
   {

@@ -260,6 +260,81 @@ export interface ReprovisionResponse {
   trace: TraceEntry[]
 }
 
+// ─── RDWS (Remote DWS) ────────────────────────────────────────────────────────
+
+// Player info/time payloads are freeform objects from the player; render generically.
+export interface PlayerInfoResponse {
+  info: Record<string, unknown>
+  trace: TraceEntry[]
+}
+
+export interface PlayerTimeResponse {
+  time: Record<string, unknown>
+  trace: TraceEntry[]
+}
+
+// Control. Live field names are camelCase (isBlank/isResultValid); the password is never returned.
+export interface DwsPasswordResponse {
+  result: { success?: boolean; password?: { isBlank?: boolean; isResultValid?: boolean } }
+  trace: TraceEntry[]
+}
+
+export interface LocalDwsResponse {
+  result: { success?: boolean; value?: boolean }
+  trace: TraceEntry[]
+}
+
+// Reboot, set-password, and set-local-dws just echo the player's { success, reboot, ... } result.
+export interface RdwsActionResponse {
+  result: unknown
+  trace: TraceEntry[]
+}
+
+// Logs: `logs` is the raw newline-delimited log text.
+export interface PlayerLogsResponse {
+  logs: string
+  trace: TraceEntry[]
+}
+
+// Storage: a directory listing. Entries are files or dirs; mime is files-only.
+export interface FileEntry {
+  name: string
+  type: string
+  path: string
+  mime?: string
+}
+
+export interface FilesResponse {
+  listing: { type?: string; path?: string; files?: FileEntry[] }
+  trace: TraceEntry[]
+}
+
+// Video: the active video mode (freeform; rendered generically).
+export interface VideoModeResponse {
+  mode: Record<string, unknown>
+  trace: TraceEntry[]
+}
+
+// Registry: the full registry value tree (sections → keys → values).
+export interface RegistryResponse {
+  registry: Record<string, unknown>
+  trace: TraceEntry[]
+}
+
+// Snapshot: remoteSnapshotThumbnail is a complete data: URI (already prefixed).
+export interface SnapshotResponse {
+  snapshot: {
+    remoteSnapshotThumbnail?: string
+    filename?: string
+    timestamp?: string
+    devicename?: string
+    width?: number
+    height?: number
+  }
+  trace: TraceEntry[]
+}
+
+
 export interface ApiError {
   error: string
   status?: number

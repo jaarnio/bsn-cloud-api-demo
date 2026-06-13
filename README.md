@@ -1,12 +1,54 @@
 # BSN.cloud API Demo
 
-A sandbox web app that demonstrates BrightSign's **BSN.cloud** and **B-Deploy** provisioning
-APIs end-to-end. Every feature is a tab with a split screen: the function on the left and a
+A sandbox web app that demonstrates BrightSign's **BSN.cloud**, **B-Deploy**, and **Remote DWS**
+APIs end-to-end. Every feature is a page with a split screen: the function on the left and a
 live **"API flow"** view on the right showing the actual (sanitized) bsn.cloud calls the
-server makes — so a developer can see how each operation works.
+server makes — raw request/response JSON — so a developer can see how each operation works.
 
-**Tabs:** Authentication · Find device · Create setup · Setup packages (list/edit/delete) ·
-Create provision · Provision records (list/edit/delete) · Reprovision (rDWS).
+## Features
+
+Pages are grouped in the left nav. The **RDWS** pages each start by picking a network and then a
+player within it (offline players are shown but disabled, since Remote DWS only reaches online
+players); all operations then target that player.
+
+### Account
+- **Authentication** — runs the full OAuth2 client-credentials flow live (force a fresh token,
+  then select a network) and shows the token + network-selection calls.
+
+### Devices
+- **List devices** — registered players in a network, with health (Normal/Warning/Error) and
+  registered/provisioned status pills.
+- **Find device** — account-wide serial lookup; sweeps every network and surfaces the device
+  record, its provision record, and the resolved setup definition.
+- **Reprovision** (rDWS) — lists players with online/offline state and last-contact time, and
+  sends a Remote DWS reprovision command. Destructive (reboots + clears storage); confirmation-
+  gated and enabled only for online players.
+
+### RDWS (Remote DWS — drive a single player)
+- **Information** — read general player info (model, firmware, boot version, uptime, power, PoE,
+  extensions, blessings, supported hardware, and Ethernet/Wi-Fi network config) plus date/time.
+- **Control** — reboot the player; check/set the DWS password (show/hide field; the API only
+  reports whether a password is set, never returns it); enable/disable the local DWS. *Every
+  Control write reboots the player and is confirmation-gated.*
+- **Logs** — fetch and view the player's current log output in a scrollable console.
+- **Storage** — browse the player's storage as a lazy, read-only file tree (defaults to the SD card).
+- **Custom** — send a custom command to the player's autorun (delivered on UDP port 5000).
+- **Snapshot** — capture a screenshot of what the player is currently showing and display it.
+- **OS Update** — instruct the player to download a firmware file from a URL and apply it.
+  Destructive (applies firmware + reboots); confirmation-gated.
+- **Video** — read the player's currently active video mode.
+- **Registry** — dump the full registry as a styled table, and set a single value by
+  section / key / value (e.g. `brightscript` / `debug` / `1`).
+
+### Setup
+- **Create setup** — build a device setup from a schema the app owns: full network-config
+  breakout (Ethernet/Wi-Fi, DHCP or static with CIDR, hostname, interface priority, time server),
+  services (DWS / Remote DWS / LWS), diagnostics, per-family OS-update policy, and remote snapshots.
+- **Setup packages** — list, edit, and delete existing setups.
+
+### Provisioning
+- **Create provision** — create a B-Deploy provision record binding a serial to a setup.
+- **Provision records** — list, edit, and delete provision records.
 
 ## Architecture
 
@@ -73,7 +115,8 @@ For a real deployment, serve `dist/` behind the Express proxy so the secret stay
 ## Security notes
 
 - `.env` is git-ignored — never commit your Client Secret.
-- The proxy redacts secrets, tokens, and device passwords from the API-flow view.
-- Write operations (create/edit/delete setups & provision records) and **Reprovision** act on
-  live data. Reprovision reboots the player and clears its storage — it is gated behind a
-  confirmation and only enabled for online players.
+- The proxy redacts secrets, tokens, and device passwords (including the DWS password set via
+  RDWS → Control) from the API-flow view.
+- Write operations act on live data. The destructive ones are confirmation-gated: **Reprovision**
+  (reboots + clears storage), and the RDWS **Control** (reboot, DWS password, local DWS — each
+  reboots the player) and **OS Update** (downloads + applies firmware, then reboots) pages.

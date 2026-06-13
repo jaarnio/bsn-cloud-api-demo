@@ -318,6 +318,88 @@ table.record tr + tr td {
   font-weight: 400;
 }
 
+/* Shared RDWS Network + player picker: two selects side by side. */
+.player-select {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-end;
+}
+.player-select .net-select { flex: 1 1 12rem; margin: 0.5rem 0; }
+.player-select .error { flex-basis: 100%; margin: 0; }
+
+/* RDWS page building blocks, shared across the section. */
+.rdws section { border-top: 1px solid #e4e6eb; margin-top: 1.25rem; padding-top: 1rem; }
+.rdws section:first-of-type { border-top: none; }
+.rdws h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+.rdws-actions { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin: 0.5rem 0; }
+.rdws-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #5a6072;
+  margin: 0.5rem 0;
+  max-width: 22rem;
+}
+.rdws-field {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid #c7cad1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-family: inherit;
+  color: #1a1a2e;
+  background: #fff;
+  box-sizing: border-box;
+}
+.rdws-field[readonly] { background: #f6f7f9; }
+.rdws-field-sm { width: auto; flex: 1 1 8rem; min-width: 7rem; }
+table.record-nested { margin: 0; }
+table.record-nested th { width: 40%; font-weight: 500; color: #6b7180; }
+.rdws-nest-item + .rdws-nest-item {
+  margin-top: 0.35rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed #e0e3e8;
+}
+
+/* Storage file tree. */
+.rdws-tree, .rdws-tree-children { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
+.rdws-tree { margin-top: 0.5rem; }
+.rdws-tree-children { margin-left: 0.6rem; border-left: 1px solid #eef0f3; padding-left: 0.6rem; }
+.rdws-tree-row { display: flex; align-items: center; gap: 0.4rem; padding: 0.12rem 0; }
+.rdws-tree-dir { cursor: pointer; font-weight: 600; color: #1a1a2e; }
+.rdws-tree-dir:hover { color: #2d5be3; }
+.rdws-tree-toggle { display: inline-block; width: 1rem; text-align: center; color: #2d5be3; }
+.rdws-tree-file { color: #3a3f4b; }
+.rdws-tree-mime { color: #8a90a0; font-size: 0.72rem; }
+
+/* Snapshot image frame. */
+.snapshot-frame { margin: 0.75rem 0 0; }
+.snapshot-frame img {
+  display: block;
+  max-width: 100%;
+  border: 1px solid #c7cad1;
+  border-radius: 8px;
+  background: #0f1117;
+}
+.snapshot-frame figcaption { margin-top: 0.4rem; }
+.rdws-log {
+  max-height: 22rem;
+  overflow: auto;
+  background: #0f1117;
+  color: #d6d9e0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.78rem;
+  line-height: 1.45;
+  padding: 0.75rem 0.9rem;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0.5rem 0 0;
+}
+
 .setup-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
 .setup-table th {
   text-align: left;

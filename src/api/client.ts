@@ -12,7 +12,17 @@ import type {
   ListPlayersResponse,
   ListProvisionsResponse,
   ListSetupsResponse,
+  DwsPasswordResponse,
+  FilesResponse,
+  LocalDwsResponse,
+  PlayerInfoResponse,
+  PlayerLogsResponse,
+  PlayerTimeResponse,
+  RdwsActionResponse,
+  RegistryResponse,
   ReprovisionResponse,
+  SnapshotResponse,
+  VideoModeResponse,
   UpdateProvisionResponse,
   UpdateSetupResponse,
 } from '../types'
@@ -181,4 +191,121 @@ export function reprovisionPlayer(serial: string, network: string): Promise<Repr
     `/api/players/${encodeURIComponent(serial)}/reprovision?network=${encodeURIComponent(network)}`,
     { method: 'POST' },
   ).then((r) => parse<ReprovisionResponse>(r))
+}
+
+// ─── RDWS (Remote DWS) ────────────────────────────────────────────────────────
+
+/** Build the common `/api/rdws/<serial>/<endpoint>?network=...` URL. */
+function rdwsUrl(serial: string, endpoint: string, network: string): string {
+  return `/api/rdws/${encodeURIComponent(serial)}/${endpoint}?network=${encodeURIComponent(network)}`
+}
+
+export function getPlayerInfo(serial: string, network: string): Promise<PlayerInfoResponse> {
+  return fetch(rdwsUrl(serial, 'info', network)).then((r) => parse<PlayerInfoResponse>(r))
+}
+
+export function getPlayerTime(serial: string, network: string): Promise<PlayerTimeResponse> {
+  return fetch(rdwsUrl(serial, 'time', network)).then((r) => parse<PlayerTimeResponse>(r))
+}
+
+export function rebootPlayer(serial: string, network: string): Promise<RdwsActionResponse> {
+  return fetch(rdwsUrl(serial, 'reboot', network), { method: 'POST' }).then((r) =>
+    parse<RdwsActionResponse>(r),
+  )
+}
+
+export function getDwsPassword(serial: string, network: string): Promise<DwsPasswordResponse> {
+  return fetch(rdwsUrl(serial, 'dws-password', network)).then((r) => parse<DwsPasswordResponse>(r))
+}
+
+export function setDwsPassword(
+  serial: string,
+  network: string,
+  password: string,
+  previousPassword: string,
+): Promise<RdwsActionResponse> {
+  return fetch(rdwsUrl(serial, 'dws-password', network), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password, previousPassword }),
+  }).then((r) => parse<RdwsActionResponse>(r))
+}
+
+export function getPlayerLogs(serial: string, network: string): Promise<PlayerLogsResponse> {
+  return fetch(rdwsUrl(serial, 'logs', network)).then((r) => parse<PlayerLogsResponse>(r))
+}
+
+export function getFiles(serial: string, network: string, path: string): Promise<FilesResponse> {
+  return fetch(`${rdwsUrl(serial, 'files', network)}&path=${encodeURIComponent(path)}`).then((r) =>
+    parse<FilesResponse>(r),
+  )
+}
+
+export function sendCustomCommand(
+  serial: string,
+  network: string,
+  command: string,
+): Promise<RdwsActionResponse> {
+  return fetch(rdwsUrl(serial, 'custom', network), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ command }),
+  }).then((r) => parse<RdwsActionResponse>(r))
+}
+
+export function captureSnapshot(serial: string, network: string): Promise<SnapshotResponse> {
+  return fetch(rdwsUrl(serial, 'snapshot', network), { method: 'POST' }).then((r) =>
+    parse<SnapshotResponse>(r),
+  )
+}
+
+export function downloadFirmware(
+  serial: string,
+  network: string,
+  url: string,
+): Promise<RdwsActionResponse> {
+  return fetch(`${rdwsUrl(serial, 'download-firmware', network)}&url=${encodeURIComponent(url)}`).then(
+    (r) => parse<RdwsActionResponse>(r),
+  )
+}
+
+export function getVideoMode(serial: string, network: string): Promise<VideoModeResponse> {
+  return fetch(rdwsUrl(serial, 'video-mode', network)).then((r) => parse<VideoModeResponse>(r))
+}
+
+export function getRegistry(serial: string, network: string): Promise<RegistryResponse> {
+  return fetch(rdwsUrl(serial, 'registry', network)).then((r) => parse<RegistryResponse>(r))
+}
+
+export function setRegistry(
+  serial: string,
+  network: string,
+  section: string,
+  key: string,
+  value: string,
+): Promise<RdwsActionResponse> {
+  const url =
+    `${rdwsUrl(serial, 'registry', network)}` +
+    `&section=${encodeURIComponent(section)}&key=${encodeURIComponent(key)}`
+  return fetch(url, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value }),
+  }).then((r) => parse<RdwsActionResponse>(r))
+}
+
+export function getLocalDws(serial: string, network: string): Promise<LocalDwsResponse> {
+  return fetch(rdwsUrl(serial, 'local-dws', network)).then((r) => parse<LocalDwsResponse>(r))
+}
+
+export function setLocalDws(
+  serial: string,
+  network: string,
+  enable: boolean,
+): Promise<RdwsActionResponse> {
+  return fetch(rdwsUrl(serial, 'local-dws', network), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enable }),
+  }).then((r) => parse<RdwsActionResponse>(r))
 }

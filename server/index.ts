@@ -6,6 +6,7 @@ import { devicesRouter } from './routes/devices.ts'
 import { setupsRouter } from './routes/setups.ts'
 import { provisionsRouter } from './routes/provisions.ts'
 import { playersRouter } from './routes/players.ts'
+import { rdwsRouter } from './routes/rdws.ts'
 
 const app = express()
 app.use(express.json())
@@ -56,6 +57,7 @@ app.use('/api/devices', devicesRouter)
 app.use('/api/setups', setupsRouter)
 app.use('/api/provisions', provisionsRouter)
 app.use('/api/players', playersRouter)
+app.use('/api/rdws', rdwsRouter)
 
 app.listen(config.port, () => {
   console.log(`[bdeploy-demo] proxy listening on http://localhost:${config.port}`)
