@@ -99,7 +99,6 @@ async function listRegisteredDevices(network: string) {
     trace: {
       step: 'List device records',
       note: 'Native Devices resource — registered players in this network (name, model, health, uptime).',
-      summarize: (b) => ({ devices: ((b as { items?: unknown[] })?.items ?? []).length }),
     },
   })
   if (!ok) throw new AuthError(status, `Failed to list device records (${status}).`)
@@ -130,7 +129,6 @@ async function listProvisionRecords(network: string) {
     trace: {
       step: 'List provision records',
       note: 'B-Deploy provision records in this network — used to mark each serial Provisioned and show its setup.',
-      summarize: (b) => ({ total: (b as { result?: { total?: number } })?.result?.total }),
     },
   })
   if (!ok) throw new AuthError(status, `Failed to list provision records (${status}).`)
@@ -194,7 +192,6 @@ async function searchAllNetworks(serial: string) {
         trace: {
           step: 'Find device record',
           note: 'Native Devices resource, filtered by serial in the selected network.',
-          summarize: (b) => ({ items: ((b as { items?: unknown[] })?.items ?? []).length }),
         },
       }),
       bsnFetch(`${PROVISION_BASE}/rest-device/v2/device/?serial=${encodeURIComponent(serial)}`, {
@@ -202,10 +199,6 @@ async function searchAllNetworks(serial: string) {
         trace: {
           step: 'Find provision record',
           note: 'B-Deploy provision record (deployment/setup binding) for the serial.',
-          summarize: (b) => {
-            const r = (b as { result?: { total?: number; players?: unknown[] } })?.result
-            return { total: r?.total, players: (r?.players ?? []).length }
-          },
         },
       }),
     ])

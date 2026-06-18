@@ -484,6 +484,45 @@ table.record-nested th { width: 40%; font-weight: 500; color: #6b7180; }
 }
 .flow-resp { background: #eef6f0; }
 
+/* Copy-to-clipboard overlay on outbound/inbound blocks (reveal on hover). */
+.flow-pre-wrap { position: relative; }
+.flow-copy {
+  position: absolute;
+  top: 0.2rem;
+  right: 0.2rem;
+  z-index: 1;
+  border: 1px solid #c7cad1;
+  background: #fff;
+  color: #5a6072;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+.flow-pre-wrap:hover .flow-copy,
+.flow-copy:focus-visible { opacity: 1; }
+.flow-copy:hover { background: #f4f5f7; color: #2d3142; }
+
+/* A traced URL that has a mapped doc page becomes a link to it. */
+.flow-url-link { color: #2d5be3; text-decoration: none; cursor: pointer; }
+.flow-url-link:hover { text-decoration: underline; }
+
+.flow-collapse-toggle {
+  border: 1px solid #c7cad1;
+  background: #f4f5f7;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  margin: 0.25rem 0;
+  cursor: pointer;
+  color: #5a6072;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.flow-collapse-toggle:hover { background: #e8eaee; }
+
 .status-head {
   display: flex;
   align-items: center;

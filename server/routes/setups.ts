@@ -2,7 +2,7 @@ import { Router } from 'express'
 import { bsnFetch } from '../bsnClient.ts'
 import { AuthError, selectNetwork } from '../auth.ts'
 import { API_BASE, PROVISION_BASE } from '../config.ts'
-import { withTrace } from '../trace.ts'
+import { redactSecrets, withTrace } from '../trace.ts'
 import { getUsername } from '../account.ts'
 import {
   buildSetupEntity,
@@ -150,7 +150,6 @@ setupsRouter.delete('/:id', async (req, res) => {
           trace: {
             step: 'Delete setup',
             note: 'Removes the setup package by _id.',
-            summarize: (b) => ({ result: (b as { result?: unknown })?.result ?? (b as { error?: unknown })?.error ?? 'ok' }),
           },
         },
       )
@@ -200,7 +199,6 @@ async function createSetup(network: string, packageName: string, opts: CreateSet
     trace: {
       step: 'Get registration token',
       note: 'Issues a player registration token (cert scope, ~2yr) to embed in the setup.',
-      summarize: (b) => ({ scope: (b as RegistrationToken)?.scope, validTo: (b as RegistrationToken)?.validTo }),
     },
   })
   if (!tokenRes.ok) {
@@ -242,7 +240,6 @@ async function createSetup(network: string, packageName: string, opts: CreateSet
         ...redactedBody(inner, network),
         bsnDeviceRegistrationTokenEntity: { token: '••••••••', scope: token.scope, validTo: token.validTo },
       },
-      summarize: (b) => ({ setupId: (b as { result?: string })?.result, error: (b as { error?: unknown })?.error }),
     },
   })
   if (!createRes.ok) {
@@ -327,6 +324,30 @@ function redactedBody(inner: Record<string, unknown>, network: string): Record<s
   }
 }
 
+/**
+ * Trace summarizer for the raw setup-list response. Each item carries a
+ * `setupJson` STRING holding the full Device Setup Entity — including the WiFi
+ * passphrase (security.authentication.passphrase), dwsPassword, lwsPassword, and
+ * the embedded registration token. Key-based redaction can't reach inside a
+ * stringified blob, so parse it first, then redact; show the parsed object
+ * (cleaner JSON than an escaped string). Unparseable blobs are masked whole.
+ */
+function maskSetupList(b: unknown): unknown {
+  const list = Array.isArray(b) ? b : ((b as { result?: unknown[] })?.result ?? [])
+  const masked = (Array.isArray(list) ? list : []).map((item) => {
+    const copy = { ...(item as Record<string, unknown>) }
+    if (typeof copy.setupJson === 'string') {
+      try {
+        copy.setupJson = redactSecrets(JSON.parse(copy.setupJson))
+      } catch {
+        copy.setupJson = '••••••••'
+      }
+    }
+    return redactSecrets(copy)
+  })
+  return Array.isArray(b) ? masked : { ...(b as object), result: masked }
+}
+
 /** Raw setup list for a network (includes setupJson). */
 async function fetchRawSetups(network: string, step: string): Promise<Array<Record<string, unknown>>> {
   const { ok, status, body } = await bsnFetch(
@@ -336,10 +357,7 @@ async function fetchRawSetups(network: string, step: string): Promise<Array<Reco
       trace: {
         step,
         note: 'Lists the setup packages stored in this network.',
-        summarize: (b) => {
-          const list = Array.isArray(b) ? b : ((b as { result?: unknown[] })?.result ?? [])
-          return { setups: Array.isArray(list) ? list.length : 0 }
-        },
+        summarize: maskSetupList,
       },
     },
   )
@@ -416,7 +434,6 @@ async function updateSetup(network: string, id: string, opts: CreateSetupBody) {
       step: 'Update setup',
       note: 'PUT the modified v3 Device Setup Entity (same _id).',
       reqBody: { _id: id, ...redactedBody(inner, network) },
-      summarize: (b) => ({ result: (b as { result?: unknown })?.result, error: (b as { error?: unknown })?.error }),
     },
   })
   if (!putRes.ok) {

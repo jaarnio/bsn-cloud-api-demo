@@ -1,5 +1,9 @@
 import { useState } from 'react'
 import type { TraceEntry } from '../types'
+import { findDocLink } from '../apiDocs'
+
+// Responses longer than this default to collapsed (e.g. a 100-device list).
+const COLLAPSE_LINES = 15
 
 // A run of consecutive entries that share the same step label.
 interface Group {
@@ -89,10 +93,25 @@ function Status({ entry }: { entry: TraceEntry }) {
 }
 
 function Call({ entry, sub }: { entry: TraceEntry; sub?: boolean }) {
+  const docUrl = findDocLink(entry.method, entry.url)
   return (
     <div className={`flow-call ${sub ? 'flow-call-sub' : ''}`}>
-      <div className="flow-line">
-        <span className="flow-method">{entry.method}</span> <span className="flow-url">{entry.url}</span>
+      <div className="flow-line flow-pre-wrap">
+        <span className="flow-method">{entry.method}</span>{' '}
+        {docUrl ? (
+          <a
+            className="flow-url flow-url-link"
+            href={docUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="View API docs"
+          >
+            {entry.url}
+          </a>
+        ) : (
+          <span className="flow-url">{entry.url}</span>
+        )}
+        <CopyButton text={outboundText(entry)} title="Copy request" />
       </div>
       {entry.note && <div className="flow-note">{entry.note}</div>}
       {entry.reqHeaders && (
@@ -102,17 +121,92 @@ function Call({ entry, sub }: { entry: TraceEntry; sub?: boolean }) {
             .join('\n')}
         </pre>
       )}
-      {entry.reqBody != null && <pre className="flow-pre">body  {fmt(entry.reqBody)}</pre>}
-      {entry.response != null && <pre className="flow-pre flow-resp">←     {fmt(entry.response)}</pre>}
+      {entry.reqBody != null && <CollapsibleBlock display={fmt(entry.reqBody)} />}
+      {entry.response != null && (
+        <CollapsibleBlock display={fmt(entry.response)} className="flow-resp" copyText={fmt(entry.response)} />
+      )}
     </div>
   )
 }
 
+/** A small "Copy" button that writes `text` to the clipboard with a brief ✓. */
+function CopyButton({ text, title }: { text: string; title?: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      className="flow-copy"
+      title={title ?? 'Copy to clipboard'}
+      onClick={() => {
+        navigator.clipboard
+          ?.writeText(text)
+          .then(() => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+          })
+          .catch(() => {})
+      }}
+    >
+      {copied ? 'Copied ✓' : 'Copy'}
+    </button>
+  )
+}
+
+/**
+ * A <pre> block that collapses when it exceeds COLLAPSE_LINES, with an optional
+ * Copy button overlaid top-right. Long payloads (e.g. a full device list) start
+ * collapsed but stay fully available on expand and on copy.
+ */
+function CollapsibleBlock({
+  display,
+  className,
+  copyText,
+}: {
+  display: string
+  className?: string
+  copyText?: string
+}) {
+  const lineCount = display.split('\n').length
+  const long = lineCount > COLLAPSE_LINES
+  const [open, setOpen] = useState(!long)
+  return (
+    <div className="flow-pre-wrap">
+      {copyText != null && <CopyButton text={copyText} title="Copy response" />}
+      {open ? (
+        <pre className={`flow-pre ${className ?? ''}`}>{display}</pre>
+      ) : (
+        <button className="flow-collapse-toggle" onClick={() => setOpen(true)}>
+          ▸ Show {lineCount} lines
+        </button>
+      )}
+      {open && long && (
+        <button className="flow-collapse-toggle" onClick={() => setOpen(false)}>
+          ▾ Hide
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Pretty-print a value as clean JSON; strings pass through unchanged. */
 function fmt(value: unknown): string {
   if (typeof value === 'string') return value
   try {
-    return JSON.stringify(value)
+    return JSON.stringify(value, null, 2)
   } catch {
     return String(value)
   }
+}
+
+/**
+ * The copyable "outbound" request: METHOD + full URL, a Bearer placeholder, and
+ * (when present) the Content-Type + JSON body. Trace URLs are scheme-less
+ * (host/path) so we restore https:// for a runnable-looking snippet.
+ */
+function outboundText(entry: TraceEntry): string {
+  const url = /^https?:\/\//.test(entry.url) ? entry.url : `https://${entry.url}`
+  const lines = [`${entry.method} ${url}`, 'Authorization: Bearer <token>']
+  if (entry.reqBody != null) {
+    lines.push('Content-Type: application/json', '', fmt(entry.reqBody))
+  }
+  return lines.join('\n')
 }

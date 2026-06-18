@@ -1,5 +1,5 @@
 import { getValidToken, selectNetwork, invalidate } from './auth.ts'
-import { record, shortUrl } from './trace.ts'
+import { record, redactSecrets, shortUrl } from './trace.ts'
 
 export interface BsnResponse {
   status: number
@@ -14,7 +14,12 @@ export interface TraceAnnotation {
   note?: string
   /** Already-sanitized request body to show (never pass raw secrets/passwords). */
   reqBody?: unknown
-  /** Produce a small, sanitized response summary for the flow view. */
+  /**
+   * Override the trace `response`. By default the full body is shown with
+   * credential-named keys masked (redactSecrets). Supply this only for special
+   * cases: stripping a huge blob (snapshot base64), or masking secrets that hide
+   * inside a stringified-JSON value that key-based redaction can't reach.
+   */
   summarize?: (body: unknown) => unknown
 }
 
@@ -83,7 +88,7 @@ export async function bsnFetch(url: string, opts: BsnFetchOptions = {}): Promise
       reqBody: trace.reqBody,
       status: res.status,
       ms: Date.now() - started,
-      response: trace.summarize ? trace.summarize(body) : undefined,
+      response: trace.summarize ? trace.summarize(body) : redactSecrets(body),
     })
   }
 

@@ -51,6 +51,34 @@ export function shortUrl(url: string): string {
   }
 }
 
+/**
+ * Keys whose VALUES are secrets and must never appear in a trace, regardless of
+ * nesting depth. Matched case-insensitively as a substring of the key name.
+ */
+const SECRET_KEY_RE = /password|passphrase|secret|token|psk|authorization|credential/i
+
+const MASK = '••••••••'
+
+/**
+ * Deep-clone a response body for display, masking any property whose key looks
+ * like a credential (see SECRET_KEY_RE). Recurses through objects and arrays;
+ * primitives are returned unchanged. This is the DEFAULT trace `response` so
+ * every call shows its real JSON without leaking secrets. NOTE: it cannot reach
+ * secrets embedded inside a stringified-JSON value (e.g. setupJson) — callers
+ * holding such blobs must supply a custom summarize (see setups route).
+ */
+export function redactSecrets(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(redactSecrets)
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = SECRET_KEY_RE.test(k) ? MASK : redactSecrets(v)
+    }
+    return out
+  }
+  return value
+}
+
 /** Replace Authorization header values with an obscured placeholder. */
 export function redactAuth(headers: Record<string, string>): Record<string, string> {
   const out: Record<string, string> = {}

@@ -53,7 +53,6 @@ provisionsRouter.post('/', async (req, res) => {
           step: 'Create provision record',
           note: 'Binds the serial to the network + setup; returns the new record id.',
           reqBody: record,
-          summarize: (x) => ({ id: (x as { result?: unknown })?.result, error: (x as { error?: unknown })?.error }),
         },
       })
       if (!createRes.ok) {
@@ -128,7 +127,6 @@ provisionsRouter.put('/:id', async (req, res) => {
           step: 'Update provision record',
           note: 'Modifies the record (same _id). A physical reprovision is needed to apply it to the player.',
           reqBody: record,
-          summarize: (x) => ({ result: (x as { result?: unknown })?.result, error: (x as { error?: unknown })?.error }),
         },
       })
       if (!putRes.ok) {
@@ -159,7 +157,6 @@ provisionsRouter.delete('/:id', async (req, res) => {
           trace: {
             step: 'Delete provision record',
             note: 'Removes the provision record by _id (only the owning network admin can).',
-            summarize: (b) => ({ result: (b as { result?: unknown })?.result ?? (b as { error?: unknown })?.error ?? 'ok' }),
           },
         },
       )
@@ -191,7 +188,6 @@ async function fetchPlayers(network: string): Promise<Player[]> {
     trace: {
       step: 'List provision records',
       note: 'Lists the B-Deploy provision records in this network.',
-      summarize: (b) => ({ total: (b as { result?: { total?: number } })?.result?.total }),
     },
   })
   if (!ok) throw new AuthError(status, `Failed to list provision records (${status}).`)

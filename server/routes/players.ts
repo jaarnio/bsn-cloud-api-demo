@@ -36,7 +36,6 @@ playersRouter.get('/', async (req, res) => {
         trace: {
           step: 'List players',
           note: 'Native Devices resource — registered players in this network, with last-contact time.',
-          summarize: (b) => ({ players: ((b as { items?: unknown[] })?.items ?? []).length }),
         },
       })
       if (!ok) throw new AuthError(status, `Failed to list players (${status}).`)
@@ -87,9 +86,6 @@ playersRouter.post('/:serial/reprovision', async (req, res) => {
         trace: {
           step: 'Reprovision player (rDWS)',
           note: 'Remote DWS tells the player to re-pull its provision record + setup, then reboot (clears storage).',
-          summarize: (b) => ({
-            result: (b as { data?: { result?: unknown } })?.data?.result ?? (b as { data?: unknown })?.data ?? 'sent',
-          }),
         },
       })
       if (!ok) {

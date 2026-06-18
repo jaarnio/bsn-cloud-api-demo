@@ -1,0 +1,38 @@
+{
+  "_comment": "Maps each bsn.cloud API call shown in the API-flow panel to its documentation page. Fill in `docUrl` (e.g. an anchor link on docs.brightsign.biz) and a blue ? icon will appear on that call's outbound line. Leave docUrl empty to show no icon. `match` is host+path (no query); a trailing * is a wildcard for dynamic trailing segments. `method` is matched case-insensitively (omit or use \"*\" to match any).",
+  "links": [
+    { "method": "POST", "match": "auth.bsn.cloud/realms/bsncloud/protocol/openid-connect/token", "title": "Get access token (OAuth2 client credentials)", "docUrl": "https://docs.brightsign.biz/developers/authentication#get-access-token" },
+
+    { "method": "GET", "match": "api.bsn.cloud/2022/06/REST/self", "title": "Get account user", "docUrl": "https://docs.brightsign.biz/developers/self-endpoints-202206#get-self" },
+    { "method": "GET", "match": "api.bsn.cloud/2022/06/REST/self/networks", "title": "List networks", "docUrl": "https://docs.brightsign.biz/developers/self-endpoints-202206#get-selfnetworks" },
+    { "method": "PUT", "match": "api.bsn.cloud/2022/06/REST/self/session/network", "title": "Select session network", "docUrl": "https://docs.brightsign.biz/developers/self-endpoints-202206#put-selfsessionnetwork" },
+    { "method": "GET", "match": "api.bsn.cloud/2022/06/REST/Devices/", "title": "List / find devices", "docUrl": "https://docs.brightsign.biz/developers/devices-endpoints-202206#get" },
+    { "method": "POST", "match": "api.bsn.cloud/2022/06/REST/Provisioning/Setups/Tokens/", "title": "Get device registration token", "docUrl": "https://docs.brightsign.biz/developers/provisioning-endpoints-202206#post-setupstokens" },
+
+    { "method": "GET", "match": "provision.bsn.cloud/rest-device/v2/device/", "title": "List / find provision records", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-device-endpoints-v2#get" },
+    { "method": "POST", "match": "provision.bsn.cloud/rest-device/v2/device", "title": "Create provision record", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-device-endpoints-v2#post" },
+    { "method": "PUT", "match": "provision.bsn.cloud/rest-device/v2/device/", "title": "Update provision record", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-device-endpoints-v2#put-idstring" },
+    { "method": "DELETE", "match": "provision.bsn.cloud/rest-device/v2/device/", "title": "Delete provision record", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-device-endpoints-v2#delete-idstring" },
+
+    { "method": "GET", "match": "provision.bsn.cloud/rest-setup/v3/setup/", "title": "List setups", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-setup-endpoints-v3#get" },
+    { "method": "POST", "match": "provision.bsn.cloud/rest-setup/v3/setup", "title": "Create setup", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-setup-endpoints-v3#post" },
+    { "method": "PUT", "match": "provision.bsn.cloud/rest-setup/v3/setup", "title": "Update setup", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-setup-endpoints-v3#put" },
+    { "method": "DELETE", "match": "provision.bsn.cloud/rest-setup/v3/setup/", "title": "Delete setup", "docUrl": "https://docs.brightsign.biz/developers/b-deploy-setup-endpoints-v3#delete-id" },
+
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/info/", "title": "rDWS: get device info", "docUrl": "https://docs.brightsign.biz/developers/rdws-information-endpoints#get-info" },
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/time/", "title": "rDWS: get device time", "docUrl": "https://docs.brightsign.biz/developers/rdws-information-endpoints#get-time" },
+    { "method": "PUT", "match": "ws.bsn.cloud/rest/v1/control/reboot/", "title": "rDWS: reboot device", "docUrl": "https://docs.brightsign.biz/developers/rdws-control-endpoints#put-controlreboot" },
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/control/dws-password/", "title": "rDWS: get DWS password status", "docUrl": "https://docs.brightsign.biz/developers/rdws-control-endpoints#get-controldws-password" },
+    { "method": "PUT", "match": "ws.bsn.cloud/rest/v1/control/dws-password/", "title": "rDWS: set DWS password", "docUrl": "https://docs.brightsign.biz/developers/rdws-control-endpoints#put-controldws-password" },
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/control/local-dws/", "title": "rDWS: get local DWS state", "docUrl": "https://docs.brightsign.biz/developers/rdws-control-endpoints#get-controllocal-dws" },
+    { "method": "PUT", "match": "ws.bsn.cloud/rest/v1/control/local-dws/", "title": "rDWS: set local DWS", "docUrl": "https://docs.brightsign.biz/developers/rdws-control-endpoints#put-controllocal-dws" },
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/logs/", "title": "rDWS: get logs", "docUrl": "https://docs.brightsign.biz/developers/rdws-logs-endpoints#get-logs" },
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/files/*", "title": "rDWS: list storage / files", "docUrl": "https://docs.brightsign.biz/developers/rdws-storage-endpoints#get-filespath" },
+    { "method": "PUT", "match": "ws.bsn.cloud/rest/v1/custom/", "title": "rDWS: send custom command", "docUrl": "https://docs.brightsign.biz/developers/rdws-other-endpoints#put-custom" },
+    { "method": "POST", "match": "ws.bsn.cloud/rest/v1/snapshot/", "title": "rDWS: capture snapshot", "docUrl": "https://docs.brightsign.biz/developers/rdws-other-endpoints#post-snapshot" },
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/download-firmware/", "title": "rDWS: download firmware (OS update)", "docUrl": "https://docs.brightsign.biz/developers/rdws-other-endpoints#get-download-firmware" },
+    { "method": "GET", "match": "ws.bsn.cloud/rest/v1/registry/", "title": "rDWS: get registry", "docUrl": "https://docs.brightsign.biz/developers/rdws-registry-endpoints#get-registry" },
+    { "method": "PUT", "match": "ws.bsn.cloud/rest/v1/registry/*", "title": "rDWS: set registry value", "docUrl": "https://docs.brightsign.biz/developers/rdws-registry-endpoints#put-registrysectionkey" },
+    { "method": "POST", "match": "ws.bsn.cloud/rest/v1/re-provision/", "title": "rDWS: reprovision device", "docUrl": "https://docs.brightsign.biz/developers/rdws-other-endpoints#get-re-provision" }
+  ]
+}
