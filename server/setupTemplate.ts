@@ -265,10 +265,14 @@ export function applyNetworkConfig(entity: Record<string, unknown>, o: NetworkOp
 // ---------------------------------------------------------------------------
 // OS Update — per-family firmware policy (`firmwareUpdatesByFamily`)
 //
-// firmwareUpdateSource enum (official FirmwareUpdateByFamily entity v3):
-//   production | beta | minimumcompatible | specificurl | none | existing
+// firmwareUpdateSource enum — values confirmed against the live Sample-OS-Updater
+// reference setup (alliancelab-sandbox-01), the ground-truth authority:
+//   production | beta | compatible | specificUrl | none | existing
+// NOTE: the v3 doc (firmware-reference-entity-v3) is self-contradictory — its prose
+// enum says "MinimumCompatible"/"SpecificUrl" but its code samples + the live setup
+// use `compatible` and `specificUrl`. The live setup wins.
 // The entity keys are SoC codenames (Thor, Cobra, …) carrying read-only version
-// metadata; the only editable bits are the per-family source (+ url for specificurl).
+// metadata; the only editable bits are the per-family source (+ url for specificUrl).
 // ---------------------------------------------------------------------------
 
 export interface FirmwareFamily {
@@ -309,7 +313,7 @@ export function applyFirmwareFamilies(
     const f = byFamily[choice.family]
     if (!f) continue // only touch families that exist in the entity
     if (choice.source) f.firmwareUpdateSource = choice.source
-    f.firmwareUpdateSourceUrl = choice.source === 'specificurl' ? choice.url ?? '' : ''
+    f.firmwareUpdateSourceUrl = choice.source === 'specificUrl' ? choice.url ?? '' : ''
   }
 }
 

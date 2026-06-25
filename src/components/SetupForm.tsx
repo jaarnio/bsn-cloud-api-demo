@@ -73,13 +73,15 @@ export const FAMILY_MODELS: Record<string, string> = {
   Tiger: '4K2',
 }
 
-// firmwareUpdateSource enum per the FirmwareUpdateByFamily entity (v3).
+// firmwareUpdateSource enum — values confirmed against the live Sample-OS-Updater
+// reference setup, not the self-contradictory v3 doc (which prose-says
+// "MinimumCompatible"/"SpecificUrl" but the live setup uses `compatible`/`specificUrl`).
 export const OS_UPDATE_SOURCES = [
   { value: 'none', label: 'Do not update' },
   { value: 'production', label: 'Latest released OS' },
   { value: 'beta', label: 'Beta OS' },
-  { value: 'minimumcompatible', label: 'Minimum compatible OS' },
-  { value: 'specificurl', label: 'Update from URL' },
+  { value: 'compatible', label: 'Minimum compatible OS' },
+  { value: 'specificUrl', label: 'Update from URL' },
 ]
 
 // Confirmed setupType enum values (probed from live setups) with display labels.
@@ -679,7 +681,7 @@ export function SetupForm({
                     .filter(Boolean)
                     .join(' · ')}
                 </span>
-                {f.source === 'specificurl' && (
+                {f.source === 'specificUrl' && (
                   <label>
                     Firmware URL
                     <input

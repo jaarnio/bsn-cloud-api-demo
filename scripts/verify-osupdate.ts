@@ -44,8 +44,8 @@ async function main() {
   const choices = [
     { family: 'Thor', source: 'production' },
     { family: 'Cobra', source: 'beta' },
-    { family: 'Tiger', source: 'minimumcompatible' },
-    { family: 'Camaro', source: 'specificurl', url: 'https://firmware.example.com/custom.bsfw' },
+    { family: 'Tiger', source: 'compatible' },
+    { family: 'Camaro', source: 'specificUrl', url: 'https://firmware.example.com/custom.bsfw' },
     { family: 'Impala', source: 'none' },
   ]
   const res = await fetch(`${base}/api/setups`, {
@@ -61,8 +61,8 @@ async function main() {
   const fam = inner.firmwareUpdatesByFamily
   check('Thor=production', fam?.Thor?.firmwareUpdateSource === 'production', fam?.Thor?.firmwareUpdateSource)
   check('Cobra=beta', fam?.Cobra?.firmwareUpdateSource === 'beta', fam?.Cobra?.firmwareUpdateSource)
-  check('Tiger=minimumcompatible', fam?.Tiger?.firmwareUpdateSource === 'minimumcompatible', fam?.Tiger?.firmwareUpdateSource)
-  check('Camaro=specificurl', fam?.Camaro?.firmwareUpdateSource === 'specificurl', fam?.Camaro?.firmwareUpdateSource)
+  check('Tiger=compatible', fam?.Tiger?.firmwareUpdateSource === 'compatible', fam?.Tiger?.firmwareUpdateSource)
+  check('Camaro=specificUrl', fam?.Camaro?.firmwareUpdateSource === 'specificUrl', fam?.Camaro?.firmwareUpdateSource)
   check('Camaro url set', fam?.Camaro?.firmwareUpdateSourceUrl === 'https://firmware.example.com/custom.bsfw', fam?.Camaro?.firmwareUpdateSourceUrl)
   check('Impala=none', fam?.Impala?.firmwareUpdateSource === 'none', fam?.Impala?.firmwareUpdateSource)
   check('untouched family preserved (no crash)', typeof fam === 'object')
